@@ -1,0 +1,71 @@
+Lossless compression
+
+Input image size: 48614148 bytes
+Output image size: 33554424 bytes
+Compression ratio: 1.4488148567235128 
+
+To implement lossless compression, we can modify the splitting algorithm to continue splitting until each leaf 
+node represents a single pixel. This way, we can perfectly recreate the original image from the quadtree.
+This modification will ensure that each leaf node represents a single pixel, allowing for lossless compression. 
+However, this will also significantly increase the size of the quadtree and the time it takes to build it, 
+as it will have to create a node for each pixel in the image.
+
+Compression with threshold
+
+Input image size: 48614148 bytes
+Output image size: 4658712 bytes
+Compression ratio: 10.435104810084848
+
+
+We will perform 4:2:0 chroma subsampling on the image, which reduces the resolution of the color information in 
+the image while keeping the resolution of the brightness information the same. This can significantly reduce the 
+size of the image without a noticeable loss in quality, because the human eye is less sensitive to changes in 
+color than it is to changes in brightness.
+
+
+Compression ratio: 10.38886381470635
+
+
+Quadtree compression time: 21.622448921203613 seconds, Compression ratio: 10.435104810084848
+JPEG compression time: 0.042142629623413086 seconds, Compression ratio: 21.93008324239809
+WebP compression time: 1.095961093902588 seconds, Compression ratio: 38.18624752568574
+
+
+Quadtree compression and JPEG compression serve different purposes and have different strengths.
+
+Lossless vs Lossy: Quadtree compression can be lossless, meaning the original image can be perfectly reconstructed 
+from the compressed data. This is not the case with JPEG, which is a lossy compression method and discards some 
+data to achieve higher compression ratios.
+
+Spatial Relationships: Quadtree compression preserves spatial relationships between pixels, which can be important 
+in certain applications. For example, in geographic information systems (GIS), quadtree compression is often used 
+to store spatial data because it preserves the spatial relationships between different regions.
+
+Simplicity and Flexibility: Quadtree compression is relatively simple and can be easily modified to suit different 
+needs. For example, you can change the splitting criteria to better suit your specific data.
+
+JPEG Artifacts: JPEG compression can introduce artifacts, especially at higher compression levels. These artifacts 
+can be visually distracting and can degrade the image quality.
+
+Computational Complexity: Quadtree compression can be computationally expensive, especially for larger images or 
+higher compression ratios. JPEG compression is generally faster and more efficient.
+
+In conclusion, while JPEG might provide better compression ratios and faster compression times for general image 
+compression tasks, quadtree compression can be more suitable for specific applications that require lossless 
+compression, preservation of spatial relationships, or flexibility in the compression algorithm.
+
+
+
+
+Please note that this is a simple example of parallelization and may not provide optimal performance. The overhead of creating and managing multiple processes can be significant, especially for small images or low compression levels. For larger images or higher compression levels, the performance improvement can be more noticeable.
+
+Also, keep in mind that Python's multiprocessing module has some limitations. For example, it does not work well with large objects because they need to be serialized and deserialized between processes. If you're working with large images, you may need to use shared memory or other techniques to efficiently share data between processes.
+
+As for optimization, there are many techniques you can use, depending on the specific requirements and constraints of your application. Some possible optimizations include:
+
+- Using more efficient data structures or algorithms
+- Reducing memory usage by freeing up resources as soon as they are no longer needed
+- Using libraries or hardware accelerators that provide optimized implementations of certain operations (e.g., numpy for array operations, GPU for image processing)
+- Profiling your code to identify and optimize bottlenecks
+
+Without more specific information about your application, it's hard to provide more detailed advice on optimization. However, I hope this gives you a good starting point.
