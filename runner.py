@@ -115,7 +115,6 @@ class QuadtreeNode(object):
         self.children = [tl, tr, bl, br]
 
     def to_image(self, x=0, y=0, img=None):
-        """Converts this node and its children to an image"""
         if img is None:
             img = Image.new('RGB', (self.width, self.height))
 
@@ -219,14 +218,13 @@ class Quadtree(object):
         return calculate_size_recursion(self.root)
 
     def compression_ratio(self):
-        input_size = self.width * self.height * 3  # 3 bytes per pixel for RGB images
-        output_size = self.calculate_size() * 24  # Assume each node takes up 24 bytes
+        input_size = self.width * self.height * 3
+        output_size = self.calculate_size() * 24
         compression_ratio = input_size / output_size
 
         return compression_ratio
     
     def to_image(self):
-        """Converts the quadtree to an image"""
         return self.root.to_image()
 
 
