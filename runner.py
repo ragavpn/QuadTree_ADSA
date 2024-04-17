@@ -230,5 +230,5 @@ class Quadtree(object):
 
 # Get a list of all jpg files in the directory
 image_paths = glob.glob('./Images/*.jpg')
-metrics = process_batch(image_paths)
+metrics = process_batch(image_paths, max_depth=10)
 display_metrics(metrics)
