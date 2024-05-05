@@ -1,10 +1,12 @@
 from PIL import Image, ImageDraw
+from PIL import ImageOps
 import concurrent.futures
 from skimage import metrics
 import matplotlib.pyplot as plt
 import numpy as np
 import glob
 import os
+import io
 
 
 PADDING = 0
@@ -12,13 +14,30 @@ OUTPUT_SCALE = 1
 ERROR_THRESHOLD = 7
 
 def display_images(original, compressed):
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    # Compress the image in memory using JPEG and WebP formats
+    jpeg_bytes = io.BytesIO()
+    compressed.save(jpeg_bytes, format='JPEG')
+    jpeg_bytes.seek(0)
+    compressed_jpeg = Image.open(jpeg_bytes)
+
+    webp_bytes = io.BytesIO()
+    compressed.save(webp_bytes, format='WEBP')
+    webp_bytes.seek(0)
+    compressed_webp = Image.open(webp_bytes)
+
+    fig, axs = plt.subplots(1, 4, figsize=(20, 5))
 
     axs[0].imshow(original)
     axs[0].set_title('Original Image')
 
     axs[1].imshow(compressed)
-    axs[1].set_title('Compressed Image')
+    axs[1].set_title('Quadtree Compressed Image')
+
+    axs[2].imshow(compressed_jpeg)
+    axs[2].set_title('JPEG Compressed Image')
+
+    axs[3].imshow(compressed_webp)
+    axs[3].set_title('WebP Compressed Image')
 
     for ax in axs:
         ax.axis('off')
@@ -26,21 +45,27 @@ def display_images(original, compressed):
     plt.show()
 
 def process_image(image_path, max_depth=10):
-    image = Image.open(image_path).convert('RGB')
-    tree = Quadtree(image, max_depth=max_depth)
-    compressed_image = tree.render_at_depth(max_depth)
+    try:
+        image = Image.open(image_path)
+        tree = Quadtree(image, max_depth=max_depth)
+        compressed_image = tree.render_at_depth(max_depth)
 
-    # Save the compressed image
-    base_name = os.path.basename(image_path)
-    base_name_without_ext = os.path.splitext(base_name)[0]
-    compressed_image_path = f'./CompressedImages/{base_name_without_ext}_compressed.jpg'
-    compressed_image.save(compressed_image_path)
+        # Save the compressed image
+        base_name = os.path.basename(image_path)
+        base_name_without_ext = os.path.splitext(base_name)[0]
+        compressed_image_path = f'./CompressedImages/{base_name_without_ext}.jpg'
+        compressed_image.save(compressed_image_path)
 
-    # Create and save the gif
-    gif_path = f'./Gifs/{base_name_without_ext}_animation.gif'
-    tree.create_gif(gif_path)
+        # Create and save the gif
+        gif_path = f'./Gifs/{base_name_without_ext}_animation.gif'
+        tree.create_gif(gif_path)
 
-    return image, compressed_image
+        return image, compressed_image
+    except ValueError as e:
+        if max_depth > 0:
+            return process_image(image_path, max_depth - 1)
+        else:
+            raise e
 
 def calculate_metrics(original, compressed):
     original = np.array(original)
@@ -52,8 +77,19 @@ def calculate_metrics(original, compressed):
 
 def process_batch(image_paths, max_depth=10):
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [executor.submit(process_image, path, max_depth) for path in image_paths]
-        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+        futures = []
+        results = []
+        for path in image_paths:
+            base_name = os.path.basename(path)
+            base_name_without_ext = os.path.splitext(base_name)[0]
+            compressed_image_path = f'./CompressedImages/{base_name_without_ext}.jpg'
+            if os.path.exists(compressed_image_path):
+                original = Image.open(path)
+                compressed = Image.open(compressed_image_path)
+                results.append((original, compressed))
+            else:
+                futures.append(executor.submit(process_image, path, max_depth))
+        results.extend([future.result() for future in concurrent.futures.as_completed(futures)])
     
     metrics = []
     for original, compressed in results:
@@ -80,16 +116,20 @@ def weighted_average(hist):
     return value, error
 
 
+
 def color_from_histogram(hist):
-    r, re = weighted_average(hist[:256])
-    g, ge = weighted_average(hist[256:512])
-    b, be = weighted_average(hist[512:768])
-    e = re * 0.2989 + ge * 0.5870 + be * 0.1140
-    return (int(r), int(g), int(b)), e
+    if len(hist) == 256:  # Grayscale image
+        value, error = weighted_average(hist)
+        return (int(value),), error
+    else:  # RGB image
+        r, re = weighted_average(hist[:256])
+        g, ge = weighted_average(hist[256:512])
+        b, be = weighted_average(hist[512:768])
+        e = re * 0.2989 + ge * 0.5870 + be * 0.1140
+        return (int(r), int(g), int(b)), e
 
 
 class QuadtreeNode(object):
-
     def __init__(self, img, box, depth):
         self.box = box
         self.depth = depth
@@ -136,8 +176,9 @@ class QuadtreeNode(object):
 
 
 class Quadtree(object):
-
     def __init__(self, image, max_depth=1024):
+        if image.mode != 'RGB':
+            image = ImageOps.grayscale(image)
         self.root = QuadtreeNode(image, image.getbbox(), 0)
         self.width, self.height = image.size
         self.max_depth = 0
